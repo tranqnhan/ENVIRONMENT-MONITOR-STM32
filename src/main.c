@@ -4,6 +4,7 @@
 #include "stm32f4xx_hal_i2c.h"
 
 #include <stdio.h>
+#include "serial.h"
 
 // SCD41 I2C address is 0x62
 // HAL_I2C_Master_Transmit() and HAL_I2C_Master_Receive() expect the 7-bit address shifted left by one bit 
@@ -14,52 +15,6 @@
 #define SCD4X_GET_DATA_READY_STATUS_RAW_CMD_ID  0xe4b8
     
 I2C_HandleTypeDef hi2c1;
-
-UART_HandleTypeDef huart2;
-
-
-int __io_putchar(int ch)
-{
-    HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
-    return ch;
-}
-
-int _write(int file, char *ptr, int len)
-{
-    HAL_UART_Transmit(&huart2, (uint8_t *)ptr, len, HAL_MAX_DELAY);
-    return len;
-}
-
-void MX_USART2_UART_Init(void)
-{
-    __HAL_RCC_USART2_CLK_ENABLE();
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-
-    GPIO_InitTypeDef GPIO_InitStruct;
-
-    // PA2 = USART2_TX
-    // PA3 = USART2_RX
-    GPIO_InitStruct.Pin = GPIO_PIN_2 | GPIO_PIN_3;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
-
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-
-    huart2.Instance = USART2;
-    huart2.Init.BaudRate = 115200;
-    huart2.Init.WordLength = UART_WORDLENGTH_8B;
-    huart2.Init.StopBits = UART_STOPBITS_1;
-    huart2.Init.Parity = UART_PARITY_NONE;
-    huart2.Init.Mode = UART_MODE_TX_RX;
-    huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-    huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-
-    HAL_UART_Init(&huart2);
-}
-
 
 
 void I2C_Init() {
@@ -151,21 +106,16 @@ int main() {
     HAL_Init();
 
     LED_Init();
-    MX_USART2_UART_Init();
+    SerialInit();
     
     I2C_Init();
 
 
     //int result = IsDeviceReady();
 
+    int count = 0;
     while(1) {
-        char msg[] = "UART TEST\r\n";
-
-        HAL_UART_Transmit(&huart2,
-                        (uint8_t *)msg,
-                        sizeof(msg) - 1,
-                        HAL_MAX_DELAY);
-
+        printf("Hello %d\n", count++);
         HAL_Delay(1000);
         
     }
