@@ -16,23 +16,54 @@
     
 I2C_HandleTypeDef hi2c1;
 
+void I2CInit(void);
+void LEDInit(void);
+int IsI2CDeviceReady(void);
 
-void I2C_Init() {
+int main() {
+    HAL_Init();
+
+    SerialInit();
+    I2CInit();
+
+    if (!IsI2CDeviceReady()) {
+        printf("SCD41 device is NOT ready.\n");
+        //return 1;
+    }
+
+    int count = 0;
+    while(1) {
+        printf("Hello %d\n", count++);
+        HAL_Delay(1000);
+        
+    }
+
+    return 0;
+}
+
+
+void SysTick_Handler(void) {
+    HAL_IncTick();
+}
+
+
+
+void I2CInit(void) {
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_I2C1_CLK_ENABLE();
 
 
     // Configuring GPIO for I2C
 
-    GPIO_InitTypeDef GPIO_InitStruct;
+    GPIO_InitTypeDef GPIOInitStruct;
 
-    GPIO_InitStruct.Pin = GPIO_PIN_8 | GPIO_PIN_9;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
+    GPIOInitStruct.Pin = GPIO_PIN_8 | GPIO_PIN_9;
+    GPIOInitStruct.Mode = GPIO_MODE_AF_OD;
+    GPIOInitStruct.Pull = GPIO_PULLUP;
+    GPIOInitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIOInitStruct.Alternate = GPIO_AF4_I2C1;
 
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+    HAL_GPIO_Init(GPIOB, &GPIOInitStruct);
 
 
     // Configure I2C hardware
@@ -47,81 +78,29 @@ void I2C_Init() {
     hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
     
     HAL_I2C_Init(&hi2c1);
+    HAL_Delay(200);
 }
 
 
-void LED_Init() {
+void LEDInit() {
     __HAL_RCC_GPIOA_CLK_ENABLE();
     
-    GPIO_InitTypeDef GPIO_InitStruct;
+    GPIO_InitTypeDef GPIOInitStruct;
 
-    GPIO_InitStruct.Pin = GPIO_PIN_5;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;    
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-    GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+    GPIOInitStruct.Pin = GPIO_PIN_5;
+    GPIOInitStruct.Mode = GPIO_MODE_OUTPUT_PP;    
+    GPIOInitStruct.Pull = GPIO_PULLUP;
+    GPIOInitStruct.Speed = GPIO_SPEED_HIGH;
 
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    HAL_GPIO_Init(GPIOA, &GPIOInitStruct);
 
 }
 
 // Returns 1 on ready, 0 otherwise.
-int IsDeviceReady() {
+int IsI2CDeviceReady(void) {
     HAL_StatusTypeDef status;
-
     status = HAL_I2C_IsDeviceReady(&hi2c1, SCD41_I2C_ADDR_62, 3, 100);
-
-    int result;
-
-    if (status == HAL_OK)
-    {
-        for (int i = 0; i < 3; ++i) {
-            HAL_Delay(200);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-            HAL_Delay(200);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-        }
-        result = 1;
-    }
-    else
-    {
-        for (int i = 0; i < 2; ++i) {
-            HAL_Delay(2000);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-            HAL_Delay(1000);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-        }
-        result = 0;
-    }
-
-    return result;
+    return status == HAL_OK;
 }
 
 
-
-void SysTick_Handler(void) {
-    HAL_IncTick();
-}
-
-int main() {
-    HAL_Init();
-
-    LED_Init();
-    SerialInit();
-    
-    I2C_Init();
-
-
-    //int result = IsDeviceReady();
-
-    int count = 0;
-    while(1) {
-        printf("Hello %d\n", count++);
-        HAL_Delay(1000);
-        
-    }
-
-
-
-
-    return 0;
-}
