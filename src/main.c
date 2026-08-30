@@ -3,6 +3,8 @@
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_i2c.h"
 
+#include <stdio.h>
+
 // SCD41 I2C address is 0x62
 // HAL_I2C_Master_Transmit() and HAL_I2C_Master_Receive() expect the 7-bit address shifted left by one bit 
 #define SCD41_I2C_ADDR_62 (0x62 << 1) 
@@ -12,6 +14,39 @@
 #define SCD4X_GET_DATA_READY_STATUS_RAW_CMD_ID  0xe4b8
     
 I2C_HandleTypeDef hi2c1;
+
+UART_HandleTypeDef huart2;
+
+
+int __io_putchar(int ch)
+{
+    HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+    return ch;
+}
+
+int _write(int file, char *ptr, int len)
+{
+    HAL_UART_Transmit(&huart2, (uint8_t *)ptr, len, HAL_MAX_DELAY);
+    return len;
+}
+
+void MX_USART2_UART_Init(void)
+{
+    __HAL_RCC_USART2_CLK_ENABLE();
+
+    huart2.Instance = USART2;
+    huart2.Init.BaudRate = 115200;
+    huart2.Init.WordLength = UART_WORDLENGTH_8B;
+    huart2.Init.StopBits = UART_STOPBITS_1;
+    huart2.Init.Parity = UART_PARITY_NONE;
+    huart2.Init.Mode = UART_MODE_TX_RX;
+    huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+
+    HAL_UART_Init(&huart2);
+}
+
+
 
 void I2C_Init() {
     __HAL_RCC_GPIOB_CLK_ENABLE();
@@ -45,6 +80,7 @@ void I2C_Init() {
     HAL_I2C_Init(&hi2c1);
 }
 
+
 void LED_Init() {
     __HAL_RCC_GPIOA_CLK_ENABLE();
     
@@ -59,44 +95,65 @@ void LED_Init() {
 
 }
 
+// Returns 1 on ready, 0 otherwise.
+int IsDeviceReady() {
+    HAL_StatusTypeDef status;
+
+    status = HAL_I2C_IsDeviceReady(&hi2c1, SCD41_I2C_ADDR_62, 3, 100);
+
+    int result;
+
+    if (status == HAL_OK)
+    {
+        for (int i = 0; i < 3; ++i) {
+            HAL_Delay(200);
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+            HAL_Delay(200);
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+        }
+        result = 1;
+    }
+    else
+    {
+        for (int i = 0; i < 2; ++i) {
+            HAL_Delay(2000);
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+            HAL_Delay(1000);
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+        }
+        result = 0;
+    }
+
+    return result;
+}
+
+
+
 void SysTick_Handler(void) {
     HAL_IncTick();
 }
 
 int main() {
     HAL_Init();
-    I2C_Init();
+
     LED_Init();
-
-    for (int i = 0; i < 3; ++i) {
-        HAL_Delay(500);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-        HAL_Delay(500);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-    }
+    MX_USART2_UART_Init();
+    
+    I2C_Init();
 
 
-    HAL_StatusTypeDef status;
+    //int result = IsDeviceReady();
 
-    status = HAL_I2C_IsDeviceReady(&hi2c1, SCD41_I2C_ADDR_62, 3, 100);
+    while(1) {
+        char msg[] = "UART TEST\r\n";
 
-    if (status == HAL_OK)
-    {
-        while (1) {
-            HAL_Delay(200);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-            HAL_Delay(200);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-        }
-    }
-    else
-    {
-        while (1) {
-            HAL_Delay(2000);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-            HAL_Delay(1000);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-        }
+        HAL_UART_Transmit(&huart2,
+                        (uint8_t *)msg,
+                        sizeof(msg) - 1,
+                        HAL_MAX_DELAY);
+
+        HAL_Delay(1000);
+        
     }
 
 
