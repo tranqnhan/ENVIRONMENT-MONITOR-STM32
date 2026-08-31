@@ -43,5 +43,7 @@ void SerialInit(void)
     huart2.Init.OverSampling = UART_OVERSAMPLING_16;
 
     HAL_UART_Init(&huart2);
+
+
 }
 

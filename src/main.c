@@ -3,7 +3,6 @@
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_i2c.h"
 
-#include <stdio.h>
 #include "serial.h"
 
 // SCD41 I2C address is 0x62
@@ -20,22 +19,71 @@ void I2CInit(void);
 void LEDInit(void);
 int IsI2CDeviceReady(void);
 
+
 int main() {
     HAL_Init();
 
     SerialInit();
+
+    printf("Initializing...\n");
+
     I2CInit();
 
+    //GPTTest();
+
     if (!IsI2CDeviceReady()) {
-        printf("SCD41 device is NOT ready.\n");
-        //return 1;
+        printf("SCD41 device is NOT READY.\n");
+    } else {
+        printf("SCD41 device is READY.\n");
     }
 
-    int count = 0;
+    HAL_Delay(1000);
+
+    HAL_StatusTypeDef ret;
+
+    printf("Start periodic measurement...\n");
+    uint8_t start_periodic_measurement_cmd[2] = {0x21, 0xB1};
+    ret = HAL_I2C_Master_Transmit(
+        &hi2c1, 
+        SCD41_I2C_ADDR_62,
+        start_periodic_measurement_cmd,
+        2,
+        5000); //Sending in Blocking mode
+    HAL_Delay(5000);
+
+    printf("SPM ret = %d\n", ret);
+
+    printf("Check if data is ready...\n");
+    uint8_t get_data_ready_status_cmd[2] = {0xe4, 0xb8};
+    uint8_t data_ready_respond[3] = {0,0,0};
+
+    ret = HAL_I2C_Master_Transmit(
+        &hi2c1, 
+        SCD41_I2C_ADDR_62,
+        get_data_ready_status_cmd,
+        2,
+        1000); //Sending in Blocking mode
+    HAL_Delay(1);
+
+    printf("TX ret = %d\n", ret);
+
+    ret = HAL_I2C_Master_Receive(
+        &hi2c1 ,
+        SCD41_I2C_ADDR_62,
+        (uint8_t *)data_ready_respond, 
+        3,
+        1000); //Receiving in Blocking mode
+    HAL_Delay(100);
+
+    printf("RX ret = %d\n", ret);
+    
+    
+    uint16_t status = ((uint16_t)data_ready_respond[0] << 8) | data_ready_respond[1];
+
     while(1) {
-        printf("Hello %d\n", count++);
-        HAL_Delay(1000);
-        
+        printf("Hello %d\n", status);
+        //printf("Hello World\n");
+        HAL_Delay(1000);        
     }
 
     return 0;
