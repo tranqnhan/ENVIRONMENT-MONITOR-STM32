@@ -17,9 +17,8 @@ void SCD41_Init(void);
 int SCD41_IsDeviceReady(void);
 HAL_StatusTypeDef SCD41_StartPeriodicMeasurement(void);
 HAL_StatusTypeDef SCD41_StopPeriodicMeasurement(void);
-
 void SCD41_ReadMeasurements(Measurements* measurements);
-
+uint8_t SCD41_GenerateCRC(const uint8_t* data, uint16_t count);
 int SCD41_GetDataStatusReady(void);
 
 

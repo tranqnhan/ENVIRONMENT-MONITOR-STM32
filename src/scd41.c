@@ -3,6 +3,7 @@
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_i2c.h"
 
+#include "serial.h"
 #include "scd41.h"
 
 // SCD41 I2C address is 0x62
@@ -82,6 +83,30 @@ HAL_StatusTypeDef SCD41_StopPeriodicMeasurement(void) {
 }
 
 
+#define CRC8_POLYNOMIAL 0x31
+#define CRC8_INIT 0xff
+
+// From SCD4x Data Sheet Section 3.11
+uint8_t SCD41_GenerateCRC(const uint8_t* data, uint16_t count) {
+    uint16_t current_byte;
+    uint8_t crc = CRC8_INIT;
+    uint8_t crc_bit;
+
+    /* calculates 8-Bit checksum with given polynomial */
+    for (current_byte = 0; current_byte < count; ++current_byte) {
+        crc ^= (data[current_byte]);
+        for (crc_bit = 8; crc_bit > 0; --crc_bit) {
+            if (crc & 0x80)
+                crc = (crc << 1) ^ CRC8_POLYNOMIAL;
+            else
+                crc = (crc << 1);
+        }
+    }
+    return crc;
+}
+
+
+
 void SCD41_ReadMeasurements(Measurements* measurements) {
     uint8_t read_measurement_cmd[2] = {0xEC, 0x05};
     HAL_I2C_Master_Transmit(
@@ -105,6 +130,17 @@ void SCD41_ReadMeasurements(Measurements* measurements) {
     uint16_t raw_temperature = (((uint16_t)measurement_respond[3]) << 8) | measurement_respond[4];
     uint16_t raw_humidity = (((uint16_t)measurement_respond[6]) << 8) | measurement_respond[7];
     
+    if (SCD41_GenerateCRC(&measurement_respond[0], 2) != measurement_respond[2]) {
+        printf("Data verification failed for CO2.\n");
+    }
+
+    if (SCD41_GenerateCRC(&measurement_respond[3], 2) != measurement_respond[5]) {
+        printf("Data verification failed for temperature.\n");
+    }
+
+    if (SCD41_GenerateCRC(&measurement_respond[6], 2) != measurement_respond[8]) {
+        printf("Data verification failed for humidity.\n");
+    }
 
     // Conversion
     
